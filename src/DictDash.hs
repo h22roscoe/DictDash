@@ -14,22 +14,30 @@ import Control.Monad
 --     Or Nothing if there is no path from start to end.
 dictDash :: String -> String -> [String] -> Maybe Int
 dictDash start end dict
-  | lenS == lenE = dictDash' start end (filter ((== lenS) . length) dict)
+  | lenS == lenE = dictDash' start end sameLenDict 0
   | otherwise    = Nothing
   where
     lenS = length start
     lenE = length end
+    sameLenDict  = filter ((== lenS) . length) dict
 
-
-dictDash' _ _ []
-  = Nothing -- Cannot perform the transition with this dictionary.
-dictDash' start end dict
-  | start == end = Just 0 -- The base case. We now know it takes 0 changes.
-  | otherwise    = fmap (+1) $ minimumMaybe nextWave 
-  where
-    newDict  = delete start dict
-    oneDiffs = filter (oneDiff start) newDict
-    nextWave = [dictDash' newS end newDict | newS <- oneDiffs]
+    -- 0 is passed into the helper function to make it tail recursive.
+    -- This helper function performs the actual filtering and gathering
+    -- of the algorithm.
+    -- oneDiffs - Is the list of words in the dict which are one letter
+    -- different to the start word
+    -- nextWave - Is the list of all the minimum distances from each of the
+    -- words in oneDiffs to the end (if there is one)
+    -- We then choose the minimum of the nextWave if there is one.
+    dictDash' _ _ [] _
+      = Nothing -- Cannot perform the transition with this dictionary.
+    dictDash' start end dict count
+      | start == end = Just count -- The base case.
+      | otherwise    = minimumMaybe nextWave
+      where
+        newDict  = filter ((/=) start) dict
+        oneDiffs = filter (oneDiffSameLen start) newDict
+        nextWave = [dictDash' newS end newDict (count + 1) | newS <- oneDiffs]
 
 -- Params:
 --    The exact same as dictDash above
@@ -43,9 +51,9 @@ dictDashRoute start end dict
   | start == end = Just [end]
   | otherwise    = fmap ((:) start) $ shortest nextWave
   where
-    newDict           = delete start dict
-    oneDiffs          = filter (oneDiff start) newDict
-    nextWave          = [dictDashRoute newS end newDict | newS <- oneDiffs]
+    newDict  = delete start dict
+    oneDiffs = filter (oneDiff start) newDict
+    nextWave = [dictDashRoute newS end newDict | newS <- oneDiffs]
 
 -- Params:
 --     xs - A list of potential lists in which we want to find the shortest
@@ -57,13 +65,13 @@ shortest []
 shortest xs
   = shortest' onlyJusts
   where
-    onlyJusts = filter isJust xs
+    onlyJusts = catMaybes xs
 
     -- shortest' is needed here so that if the filter actually empties the list
     -- then we can still return nothing. Otherwise we might get an error from
     -- minimumBy for calling on an empty list.
     shortest' [] = Nothing
-    shortest' xs = minimumBy (compare `on` (length . fromJust)) xs
+    shortest' xs = Just $ minimumBy (compare `on` length) xs
 
 -- Params:
 --     xs - Is a list of possible Ints which we need to find the minimum of.
@@ -74,17 +82,16 @@ minimumMaybe :: [Maybe Int] -> Maybe Int
 minimumMaybe []
   = Nothing
 minimumMaybe xs
-  = minimumMaybe' onlyJusts -- If there is a Nothing in the list i.e. a
-                            -- particular route didn't work out, then
-                            -- we still want to see the minimum of the rest.
+  = minimumMaybe' $ catMaybes xs -- If there is a Nothing in the list i.e. a
+                                 -- particular route didn't work out, then
+                                 -- we still want to see the minimum of the
+                                 -- rest.
   where
-    onlyJusts = filter isJust xs
-
     -- minimumMaybe' is needed so that I don't use minimum on an empty list
     -- which would throw an exception. 
     -- The onlyJusts could be empty even if xs wasn't.
     minimumMaybe' [] = Nothing
-    minimumMaybe' xs = fmap minimum $ sequence xs
+    minimumMaybe' xs = Just $ minimum xs
 
 -- Params:
 --     word  - Is just a String that we want to find if it is one letter
@@ -96,15 +103,29 @@ minimumMaybe xs
 oneDiff :: String -> String -> Bool
 oneDiff word other
   = if length word == length other
-    then oneDiff' word other 0
+    then oneDiffSameLen word other
     else False -- Because all one letter differences are replacements
                -- and there are no additions or removals.
+
+-- oneDiffSameLen counts the number of differences in two equal length strings
+-- and if it reaches the end of both with one difference then returns True
+-- Params:
+--     same as oneDiff above except pre cond is they must be same length.
+-- Returns:
+--     Whether or not the two strings differ by 1 character replacement.
+oneDiffSameLen :: String -> String -> Bool
+oneDiffSameLen word other
+  = oneDiffSameLen' word other 0
   where
-    -- oneDiff' counts the number of differences in two equal length strings
-    -- and if it reaches the end of both with one difference then returns True
-    oneDiff' "" "" 1 = True
-    oneDiff' "" "" _ = False
-    oneDiff' (w : ws) (o : os) count
-      | w == o    = oneDiff' ws os count
-      | otherwise = oneDiff' ws os (count + 1)
+    -- We now take in an extra arg in the helper function to tell us the number
+    -- of differences which starts at 0 and if it ever goes > 1 we know it
+    -- is false, however it is only true if we reach the end with one diff
+    oneDiffSameLen' "" "" 1 = True
+    oneDiffSameLen' "" "" _ = False
+    oneDiffSameLen' (w : ws) (o : os) diffs
+      = if diffs > 1 -- This is to save us going any further if there are too
+        then False   -- many differences already. 
+        else if w == o
+        then oneDiffSameLen' ws os diffs
+        else oneDiffSameLen' ws os (diffs + 1)
 

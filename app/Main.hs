@@ -10,6 +10,8 @@ main = do
   args <- getArgs
   main' args
   where
+    -- main' can process the arguments given and perform the
+    -- correct IO function depending on those arguments.
     main' :: [String] -> IO ()
     main' []            = withoutFile
     main' (file : rest) = do
@@ -27,6 +29,9 @@ main = do
       then putStrLn $ show $ dictDashRoute start end dict
       else putStrLn "You can also find out the route by saying `how?`"
 
+
+-- This IO is performed when no file name argument is given
+-- and gathers the appropriate strings to perform the function on.
 withoutFile :: IO ()
 withoutFile = do
   putStr "Please enter the start word: "

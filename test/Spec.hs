@@ -16,7 +16,7 @@ prop_emptyDictGivesNothing start end
 start = "hit"
 end   = "cog"
 dict  = ["hit", "dot", "dog", "cog", "hot", "log"]
-dict2 = ["dot", "dog", "cog", "hid", "hod", "had", "hat", "bat", "bot"]
+dict2 = ["dot", "dog", "dog", "cog", "hid", "hod", "had", "hat", "bat", "bot"]
 noEnd = ["hat", "hot", "not", "nor", "xor"]
 diffLengths
   = ["hate", "bit", "bob", "ma", "hi", "log", "toga", "bot", "cob", "cog"]
@@ -39,6 +39,7 @@ tests
   = TestList [
     givenExample,
     moreComplexExample,
+    noEndTest,
     ignoreDiffLengths
   ]
 
